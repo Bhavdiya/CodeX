@@ -33,7 +33,10 @@ serve(async (req) => {
           const result = await executeJavaScript(code)
           output = result
         } catch (e) {
-          error = e.message
+          error = `JavaScript Error: ${e.name}: ${e.message}`
+          if (e.stack) {
+            error += `\n\nStack trace:\n${e.stack}`
+          }
         }
         break
 
@@ -41,23 +44,38 @@ serve(async (req) => {
         try {
           output = await executePython(code)
         } catch (e) {
-          error = e.message
+          error = `Python Error: ${e.message}`
         }
         break
 
       case 'html':
-        output = 'HTML rendered successfully! Check the preview tab.'
+        // Validate HTML
+        if (code.includes('<script>') && !code.includes('</script>')) {
+          error = 'HTML Error: Unclosed <script> tag detected'
+        } else if (code.includes('<style>') && !code.includes('</style>')) {
+          error = 'HTML Error: Unclosed <style> tag detected'
+        } else {
+          output = 'HTML rendered successfully! Check the preview tab.'
+        }
         break
 
       case 'css':
-        output = 'CSS styles applied successfully! Check the preview tab.'
+        // Basic CSS validation
+        const openBraces = (code.match(/{/g) || []).length
+        const closeBraces = (code.match(/}/g) || []).length
+        if (openBraces !== closeBraces) {
+          error = 'CSS Syntax Error: Mismatched braces - missing ' + 
+                  (openBraces > closeBraces ? 'closing' : 'opening') + ' brace(s)'
+        } else {
+          output = 'CSS styles applied successfully! Check the preview tab.'
+        }
         break
 
       case 'cpp':
         try {
           output = await executeCpp(code)
         } catch (e) {
-          error = e.message
+          error = `C++ Error: ${e.message}`
         }
         break
 
@@ -70,12 +88,16 @@ serve(async (req) => {
       session_id: sessionId,
       language,
       code,
-      output,
-      error
+      output: output || null,
+      error: error || null
     })
 
     return new Response(
-      JSON.stringify({ output, error, success: !error }),
+      JSON.stringify({ 
+        output: error || output, 
+        error: error ? true : false, 
+        success: !error 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -84,7 +106,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('Code execution error:', error)
     return new Response(
-      JSON.stringify({ error: error.message, success: false }),
+      JSON.stringify({ 
+        output: `System Error: ${error.message}`, 
+        error: true, 
+        success: false 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -96,42 +122,77 @@ serve(async (req) => {
 async function executeJavaScript(code: string): Promise<string> {
   // Create a safe execution environment
   const logs: string[] = []
+  const errors: string[] = []
   
-  // Override console.log to capture output
-  const originalConsole = console.log
+  // Override console methods to capture output
+  const originalConsole = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+    info: console.info
+  }
+  
   console.log = (...args: any[]) => {
     logs.push(args.map(arg => String(arg)).join(' '))
   }
+  
+  console.error = (...args: any[]) => {
+    errors.push('ERROR: ' + args.map(arg => String(arg)).join(' '))
+  }
+  
+  console.warn = (...args: any[]) => {
+    logs.push('WARNING: ' + args.map(arg => String(arg)).join(' '))
+  }
+  
+  console.info = (...args: any[]) => {
+    logs.push('INFO: ' + args.map(arg => String(arg)).join(' '))
+  }
 
   try {
+    // Check for common syntax errors before execution
+    if (code.includes('console.log(') && !code.includes(')')) {
+      throw new SyntaxError('Unclosed console.log statement')
+    }
+    
     // Execute the code in a try-catch to handle errors
     const result = eval(code)
     
-    // Restore original console.log
-    console.log = originalConsole
+    // Restore original console methods
+    Object.assign(console, originalConsole)
     
-    // Return captured logs or the result
-    if (logs.length > 0) {
-      return logs.join('\n')
+    // Combine logs and errors
+    const allOutput = [...logs, ...errors]
+    
+    // Return captured logs, errors, or the result
+    if (allOutput.length > 0) {
+      return allOutput.join('\n')
     } else if (result !== undefined) {
       return String(result)
     } else {
-      return 'Code executed successfully'
+      return 'Code executed successfully (no output)'
     }
   } catch (error) {
-    console.log = originalConsole
+    // Restore original console methods
+    Object.assign(console, originalConsole)
     throw error
   }
 }
 
 async function executePython(code: string): Promise<string> {
-  // For Python, this is a simulation since we can't run Python in Deno
-  // In a real implementation, you'd use a Python runtime or container
+  // Enhanced Python simulation with better error detection
   const lines = code.split('\n')
   const outputs: string[] = []
+  const errors: string[] = []
   
-  for (const line of lines) {
-    if (line.trim().startsWith('print(')) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    
+    if (line.startsWith('print(')) {
+      // Check for syntax errors
+      if (!line.includes(')')) {
+        throw new Error(`SyntaxError: Unclosed print statement at line ${i + 1}`)
+      }
+      
       // Simple print statement extraction
       const match = line.match(/print\((.+)\)/)
       if (match) {
@@ -148,30 +209,64 @@ async function executePython(code: string): Promise<string> {
           outputs.push(match[1].replace(/['"]/g, ''))
         }
       }
+    } else if (line && !line.startsWith('#') && !line.startsWith('def ')) {
+      // Check for common Python syntax errors
+      if (line.includes('=') && !line.includes('==') && !line.includes('!=')) {
+        // Variable assignment - simulate
+        continue
+      } else if (line.includes('if ') && !line.endsWith(':')) {
+        throw new Error(`SyntaxError: Invalid syntax - missing colon after if statement at line ${i + 1}`)
+      }
     }
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(errors.join('\n'))
   }
   
   return outputs.length > 0 ? outputs.join('\n') : 'Python code processed (limited execution in browser environment)'
 }
 
 async function executeCpp(code: string): Promise<string> {
-  // C++ simulation - in reality you'd need a C++ compiler
-  if (code.includes('cout')) {
-    const outputs: string[] = []
-    const lines = code.split('\n')
-    
-    for (const line of lines) {
-      if (line.includes('cout')) {
-        // Extract cout statements
-        const match = line.match(/cout\s*<<\s*"([^"]+)"/)
-        if (match) {
-          outputs.push(match[1])
-        }
-      }
-    }
-    
-    return outputs.length > 0 ? outputs.join('\n') : 'C++ code processed (limited execution in browser environment)'
+  // Enhanced C++ simulation with error detection
+  const lines = code.split('\n')
+  const outputs: string[] = []
+  const errors: string[] = []
+  
+  // Check for basic syntax errors
+  const openBraces = (code.match(/{/g) || []).length
+  const closeBraces = (code.match(/}/g) || []).length
+  
+  if (openBraces !== closeBraces) {
+    throw new Error(`Compilation Error: Mismatched braces - expected ${openBraces} closing braces, found ${closeBraces}`)
   }
   
-  return 'C++ code compiled successfully (simulation)'
+  if (!code.includes('int main(') && !code.includes('int main (')) {
+    throw new Error('Compilation Error: No main function found')
+  }
+  
+  if (code.includes('cout') && !code.includes('#include <iostream>')) {
+    errors.push('Warning: Missing #include <iostream> for cout')
+  }
+  
+  for (const line of lines) {
+    if (line.includes('cout')) {
+      // Check for proper cout syntax
+      if (!line.includes('<<')) {
+        throw new Error('Compilation Error: Invalid cout syntax - missing << operator')
+      }
+      
+      // Extract cout statements
+      const match = line.match(/cout\s*<<\s*"([^"]+)"/)
+      if (match) {
+        outputs.push(match[1])
+      }
+    }
+  }
+  
+  if (errors.length > 0) {
+    outputs.unshift(...errors)
+  }
+  
+  return outputs.length > 0 ? outputs.join('\n') : 'C++ code compiled successfully (simulated execution)'
 }

@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Terminal, Eye, AlertCircle } from 'lucide-react';
+import { Terminal, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface OutputPanelProps {
   output: string;
@@ -69,7 +69,35 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
     );
   };
 
-  const hasErrors = output.toLowerCase().includes('error');
+  // Enhanced error detection
+  const hasErrors = output.toLowerCase().includes('error') || 
+                   output.toLowerCase().includes('exception') ||
+                   output.toLowerCase().includes('syntaxerror') ||
+                   output.toLowerCase().includes('referenceerror') ||
+                   output.toLowerCase().includes('typeerror') ||
+                   output.toLowerCase().includes('uncaught');
+
+  const isSuccess = output && !hasErrors && !isRunning;
+
+  // Parse and format error messages
+  const formatOutput = (text: string) => {
+    if (!text) return null;
+    
+    // Split by lines and format each line
+    const lines = text.split('\n');
+    return lines.map((line, index) => {
+      const isErrorLine = line.toLowerCase().includes('error') || 
+                         line.toLowerCase().includes('exception') ||
+                         line.toLowerCase().includes('at ') ||
+                         line.includes('    at');
+      
+      return (
+        <div key={index} className={`${isErrorLine ? 'text-red-300 font-medium' : ''}`}>
+          {line}
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="w-96 bg-gray-800 flex flex-col">
@@ -78,6 +106,9 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
           <TabsTrigger value="output" className="data-[state=active]:bg-gray-600">
             <Terminal className="h-4 w-4 mr-2" />
             Console
+            {hasErrors && (
+              <div className="ml-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            )}
           </TabsTrigger>
           <TabsTrigger value="preview" className="data-[state=active]:bg-gray-600">
             <Eye className="h-4 w-4 mr-2" />
@@ -86,18 +117,27 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
         </TabsList>
         
         <TabsContent value="output" className="flex-1 m-2 mt-0">
-          <Card className="h-full bg-gray-900 border-gray-700">
+          <Card className={`h-full border-gray-700 ${
+            hasErrors ? 'bg-red-950/30 border-red-500/30' : 
+            isSuccess ? 'bg-green-950/30 border-green-500/30' : 
+            'bg-gray-900'
+          }`}>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center">
                 {hasErrors ? (
                   <>
                     <AlertCircle className="h-4 w-4 mr-2 text-red-400" />
-                    <span className="text-red-400">Error Output</span>
+                    <span className="text-red-400">Execution Error</span>
+                  </>
+                ) : isSuccess ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2 text-green-400" />
+                    <span className="text-green-400">Success</span>
                   </>
                 ) : (
                   <>
-                    <Terminal className="h-4 w-4 mr-2 text-green-400" />
-                    <span className="text-green-400">Console Output</span>
+                    <Terminal className="h-4 w-4 mr-2 text-blue-400" />
+                    <span className="text-blue-400">Console Output</span>
                   </>
                 )}
               </CardTitle>
@@ -111,13 +151,25 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
                       <span>Executing code...</span>
                     </div>
                   ) : output ? (
-                    <pre className={`text-sm font-mono whitespace-pre-wrap ${
-                      hasErrors ? 'text-red-400' : 'text-green-400'
-                    }`}>
-                      {output}
-                    </pre>
+                    <div className="space-y-1">
+                      {hasErrors ? (
+                        <div className="mb-3 p-3 bg-red-900/30 border border-red-500/30 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <AlertCircle className="h-4 w-4 mr-2 text-red-400" />
+                            <span className="text-red-400 font-medium">Error Details:</span>
+                          </div>
+                        </div>
+                      ) : null}
+                      <pre className={`text-sm font-mono whitespace-pre-wrap leading-relaxed ${
+                        hasErrors ? 'text-red-300' : 
+                        isSuccess ? 'text-green-300' : 
+                        'text-gray-300'
+                      }`}>
+                        {formatOutput(output)}
+                      </pre>
+                    </div>
                   ) : (
-                    <div className="text-gray-500 text-sm">
+                    <div className="text-gray-500 text-sm italic">
                       Click "Run Code" to see output here...
                     </div>
                   )}
