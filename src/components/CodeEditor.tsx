@@ -1,10 +1,11 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Header } from './Header';
 import { OutputPanel } from './OutputPanel';
 import { ShareDialog } from './ShareDialog';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface CodeSnippet {
   id: string;
@@ -16,7 +17,7 @@ export interface CodeSnippet {
 }
 
 const SAMPLE_CODE = {
-  javascript: `// Welcome to the Online Code Editor!
+  javascript: `// Welcome to the Real-Time Code Editor!
 console.log("Hello, World!");
 
 function fibonacci(n) {
@@ -28,7 +29,7 @@ console.log("Fibonacci sequence:");
 for (let i = 0; i < 8; i++) {
   console.log(\`F(\${i}) = \${fibonacci(i)}\`);
 }`,
-  python: `# Welcome to the Online Code Editor!
+  python: `# Welcome to the Real-Time Code Editor!
 print("Hello, World!")
 
 def fibonacci(n):
@@ -39,7 +40,7 @@ def fibonacci(n):
 print("Fibonacci sequence:")
 for i in range(8):
     print(f"F({i}) = {fibonacci(i)}")`,
-  cpp: `// Welcome to the Online Code Editor!
+  cpp: `// Welcome to the Real-Time Code Editor!
 #include <iostream>
 using namespace std;
 
@@ -86,12 +87,12 @@ int main() {
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to the Online Code Editor!</h1>
+        <h1>Welcome to the Real-Time Code Editor!</h1>
         <p>Start coding and see your results instantly.</p>
     </div>
 </body>
 </html>`,
-  css: `/* Welcome to the Online Code Editor! */
+  css: `/* Welcome to the Real-Time Code Editor! */
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
@@ -145,6 +146,7 @@ export const CodeEditor: React.FC = () => {
   const [currentSnippet, setCurrentSnippet] = useState<CodeSnippet | null>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [sessionId] = useState(Math.random().toString(36).substr(2, 9));
   const editorRef = useRef(null);
   const { toast } = useToast();
 
@@ -159,89 +161,61 @@ export const CodeEditor: React.FC = () => {
     setOutput('');
   }, []);
 
-  const simulateCodeExecution = useCallback((code: string, language: string) => {
-    // Simulate code execution with realistic output
-    let simulatedOutput = '';
-    
-    switch (language) {
-      case 'javascript':
-        if (code.includes('console.log')) {
-          simulatedOutput = `Hello, World!
-Fibonacci sequence:
-F(0) = 0
-F(1) = 1
-F(2) = 1
-F(3) = 2
-F(4) = 3
-F(5) = 5
-F(6) = 8
-F(7) = 13`;
-        } else {
-          simulatedOutput = '// Code executed successfully';
-        }
-        break;
-      case 'python':
-        simulatedOutput = `Hello, World!
-Fibonacci sequence:
-F(0) = 0
-F(1) = 1
-F(2) = 1
-F(3) = 2
-F(4) = 3
-F(5) = 5
-F(6) = 8
-F(7) = 13`;
-        break;
-      case 'cpp':
-        simulatedOutput = `Hello, World!
-Fibonacci sequence:
-F(0) = 0
-F(1) = 1
-F(2) = 1
-F(3) = 2
-F(4) = 3
-F(5) = 5
-F(6) = 8
-F(7) = 13`;
-        break;
-      case 'html':
-        simulatedOutput = 'HTML rendered successfully! Check the preview above.';
-        break;
-      case 'css':
-        simulatedOutput = 'CSS styles applied successfully!';
-        break;
-      default:
-        simulatedOutput = 'Code executed successfully!';
-    }
-    
-    return simulatedOutput;
-  }, []);
-
   const handleRunCode = useCallback(async () => {
     setIsRunning(true);
-    setOutput('Running code...');
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setOutput('Executing code...');
     
     try {
-      const result = simulateCodeExecution(code, language);
-      setOutput(result);
-      toast({
-        title: "Code executed successfully!",
-        description: `${language} code ran without errors.`,
+      const { data, error } = await supabase.functions.invoke('execute-code', {
+        body: {
+          code,
+          language,
+          sessionId
+        }
       });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.error) {
+        setOutput(`Error: ${data.error}`);
+        toast({
+          title: "Execution failed",
+          description: "There was an error running your code.",
+          variant: "destructive",
+        });
+      } else {
+        setOutput(data.output || 'Code executed successfully');
+        toast({
+          title: "Code executed successfully!",
+          description: `${language} code ran without errors.`,
+        });
+      }
     } catch (error) {
-      setOutput(`Error: ${error}`);
+      console.error('Execution error:', error);
+      setOutput(`Error: ${error.message || 'Unknown error occurred'}`);
       toast({
         title: "Execution failed",
-        description: "There was an error running your code.",
+        description: "Failed to execute code. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, simulateCodeExecution, toast]);
+  }, [code, language, sessionId, toast]);
+
+  // Auto-run code when it changes (with debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (code.trim() && (language === 'html' || language === 'css')) {
+        // For HTML/CSS, we don't need to run through the backend
+        return;
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [code, language]);
 
   const handleSaveSnippet = useCallback(() => {
     const snippet: CodeSnippet = {
@@ -267,7 +241,6 @@ F(7) = 13`;
     setShareUrl(url);
     setShowShareDialog(true);
     
-    // In a real app, you'd save this to a database
     console.log('Sharing code snippet:', { shareId, code, language });
   }, [code, language]);
 
