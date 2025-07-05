@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,26 +35,25 @@ export const Header: React.FC<HeaderProps> = ({
   onLoadSnippet,
 }) => {
   return (
-    <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
+    <header className="mx-4 mt-4 rounded-2xl shadow-lg bg-white/10 backdrop-blur-md border border-white/20 px-6 py-3 flex items-center justify-between transition-all duration-300">
+      <a href="/" className="flex items-center space-x-3 group hover:scale-105 transition-transform">
+        <img 
+          src="/android-chrome-192x192.png" 
+          alt="Codex Logo" 
+          className="h-10 w-10 rounded-xl shadow group-hover:shadow-lg transition-shadow"
+        />
+        <h1 className="text-2xl font-extrabold bg-gradient-to-r from-white via-blue-400 to-purple-500 bg-clip-text text-transparent tracking-tight group-hover:from-blue-200 group-hover:to-purple-300 transition-colors">
+          Codex
+        </h1>
+      </a>
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
-          <img 
-            src="/android-chrome-192x192.png" 
-            alt="Codex Logo" 
-            className="h-8 w-8 rounded-lg"
-          />
-          <h1 className="text-xl font-bold bg-gradient-to-r from-white to-blue -400 bg-clip-text text-transparent">
-            Codex
-          </h1>
-        </div>
-        
         <Select value={language} onValueChange={onLanguageChange}>
-          <SelectTrigger className="w-48 bg-gray-700 border-gray-600">
+          <SelectTrigger className="w-40 bg-white/20 border-white/30 text-white hover:bg-white/30 transition-colors">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-gray-800 border-gray-600">
+          <SelectContent className="bg-gray-900/90 border-white/20 text-white shadow-xl rounded-xl">
             {LANGUAGES.map((lang) => (
-              <SelectItem key={lang.value} value={lang.value} className="text-white hover:bg-gray-700">
+              <SelectItem key={lang.value} value={lang.value} className="text-white hover:bg-blue-500/20 rounded transition-colors">
                 <span className="flex items-center space-x-2">
                   <span>{lang.icon}</span>
                   <span>{lang.label}</span>
@@ -64,17 +62,14 @@ export const Header: React.FC<HeaderProps> = ({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex items-center space-x-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="bg-gray-700 border-gray-600 hover:bg-gray-600">
+            <Button variant="outline" size="sm" className="bg-white/20 border-white/30 text-white hover:bg-white/30 transition-colors shadow rounded-lg">
               <FolderOpen className="h-4 w-4 mr-2" />
               Open ({snippets.length})
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-gray-800 border-gray-600 w-64">
+          <DropdownMenuContent className="bg-gray-900/90 border-white/20 text-white shadow-xl rounded-xl">
             {snippets.length === 0 ? (
               <DropdownMenuItem disabled className="text-gray-400">
                 No saved snippets
@@ -84,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <DropdownMenuItem
                   key={snippet.id}
                   onClick={() => onLoadSnippet(snippet)}
-                  className="text-white hover:bg-gray-700 cursor-pointer"
+                  className="text-white hover:bg-blue-500/20 rounded transition-colors cursor-pointer"
                 >
                   <div className="flex flex-col">
                     <span className="font-medium">{snippet.title}</span>
@@ -97,36 +92,39 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-
         <Button
           onClick={onSaveSnippet}
           variant="outline"
           size="sm"
-          className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+          className="bg-white/20 border-white/30 text-white hover:bg-blue-500/20 transition-colors shadow rounded-lg"
         >
           <Save className="h-4 w-4 mr-2" />
           Save
         </Button>
-
         <Button
           onClick={onShareCode}
           variant="outline"
           size="sm"
-          className="bg-gray-700 border-gray-600 hover:bg-gray-600"
+          className="bg-white/20 border-white/30 text-white hover:bg-purple-500/20 transition-colors shadow rounded-lg"
         >
           <Share2 className="h-4 w-4 mr-2" />
           Share
         </Button>
-
         <Button
           onClick={onRunCode}
           disabled={isRunning}
-          className="bg-green-600 hover:bg-green-700 text-white"
+          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow rounded-lg px-4 py-2 font-semibold transition-all duration-200"
           size="sm"
         >
           <Play className="h-4 w-4 mr-2" />
           {isRunning ? 'Running...' : 'Run Code'}
         </Button>
+        {/* Avatar placeholder */}
+        <div className="ml-4">
+          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg border-2 border-white/30">
+            <span className="text-white font-bold text-lg select-none">B</span>
+          </div>
+        </div>
       </div>
     </header>
   );
