@@ -39,9 +39,13 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
-          <Code2 className="h-6 w-6 text-blue-400" />
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Code Editor
+          <img 
+            src="/android-chrome-192x192.png" 
+            alt="Codex Logo" 
+            className="h-8 w-8 rounded-lg"
+          />
+          <h1 className="text-xl font-bold bg-gradient-to-r from-white to-blue -400 bg-clip-text text-transparent">
+            Codex
           </h1>
         </div>
         

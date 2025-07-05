@@ -17,7 +17,7 @@ export interface CodeSnippet {
 }
 
 const SAMPLE_CODE = {
-  javascript: `// Welcome to the Real-Time Code Editor!
+  javascript: `// Welcome to Codex!
 console.log("Hello, World!");
 
 function fibonacci(n) {
@@ -29,7 +29,7 @@ console.log("Fibonacci sequence:");
 for (let i = 0; i < 8; i++) {
   console.log(\`F(\${i}) = \${fibonacci(i)}\`);
 }`,
-  python: `# Welcome to the Real-Time Code Editor!
+  python: `# Welcome to Codex!
 print("Hello, World!")
 
 def fibonacci(n):
@@ -40,7 +40,7 @@ def fibonacci(n):
 print("Fibonacci sequence:")
 for i in range(8):
     print(f"F({i}) = {fibonacci(i)}")`,
-  cpp: `// Welcome to the Real-Time Code Editor!
+  cpp: `// Welcome to Codex!
 #include <iostream>
 using namespace std;
 
@@ -87,12 +87,12 @@ int main() {
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to the Real-Time Code Editor!</h1>
+        <h1>Welcome to Codex!</h1>
         <p>Start coding and see your results instantly.</p>
     </div>
 </body>
 </html>`,
-  css: `/* Welcome to the Real-Time Code Editor! */
+  css: `/* Welcome to Codex! */
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
